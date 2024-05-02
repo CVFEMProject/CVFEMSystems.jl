@@ -1,0 +1,10 @@
+name = "AnisotropicFVMProject"
+uuid = "0af68cf8-b9f3-4f9e-84f2-6ecd8b7c35ba"
+authors = ["Jürgen Fuhrmann <juergen-fuhrmann@web.de>"]
+version = "0.1.0"
+
+[deps]
+ExtendableGrids = "cfc395e8-590f-11e8-1f13-43a2532b2fa8"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
