@@ -4,7 +4,15 @@ authors = ["Jürgen Fuhrmann <juergen-fuhrmann@web.de>"]
 version = "0.1.0"
 
 [deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 ExtendableGrids = "cfc395e8-590f-11e8-1f13-43a2532b2fa8"
+GridVisualize = "5eed8a63-0fb0-45eb-886d-8d5a387d12b8"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+PlutoVista = "646e1f28-b900-46d7-9d87-d554eb38a413"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+SimplexGridFactory = "57bfcd06-606e-45d6-baf4-4ba06da0efd5"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
+TetGen = "c5d3f3f7-f850-59f6-8a2e-ffc6dc1317ea"
+Triangulate = "f7e6ffb2-c36d-4f8f-a77e-16e897189344"
