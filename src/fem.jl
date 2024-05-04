@@ -23,20 +23,18 @@ function coordmatrix!(C,coord, cellnodes,icell)
     end
 end
 
+
 function femgrad!(G,C)
     spacedim=size(C,1)
     celldim=spacedim+1
-    vol=abs(det(C))/prod(1:spacedim)
     G[1:spacedim,1:spacedim].=C\I
     for i=1:spacedim
-        G[spacedim+1,i]=0.0
+        G[celldim,i]=0.0
         for j=1:spacedim
             G[celldim,i]-=G[j,i]
         end
     end
-    G,vol
 end
-
 
 
 function femfactors!(ω,e,G,vol,Λ,len)
@@ -54,31 +52,65 @@ end
 
 
 
-function femstiffness!(S,G,vol,Λ)
-    celldim=size(S,1)
-    spacedim=celldim-1
-    for il=1:celldim
-        @views ΛGil=Λ*G[il,:]*vol
-        @views S[il,il]=dot(ΛGil,G[il,:])
-        for jl=il+1:celldim
-            S[il,jl]=dot(ΛGil,G[jl,:])
-            S[jl,il]=S[il,jl]
-        end
-    end
-    return S
+# function femstiffness!(S,G,Λ)
+#     celldim=size(S,1)
+#     spacedim=celldim-1
+#     for il=1:celldim
+#         @views ΛGil=Λ*G[il,:]
+#         @views S[il,il]=dot(ΛGil,G[il,:])
+#         for jl=il+1:celldim
+#             S[il,jl]=dot(ΛGil,G[jl,:])
+#             S[jl,il]=S[il,jl]
+#         end
+#     end
+#     return S
+# end
+
+
+function femstiffness!(S,G,Λ)
+    @einsum S[il,jl]=G[il,k]*Λ[k,m]*G[jl,m]
+    # celldim=size(S,1)
+    # spacedim=celldim-1
+    # for il=1:celldim
+    #     S[il,il]=0.0
+    #     for k=1:spacedim
+    #         for m=1:spacedim
+    #             S[il,il]+=G[il,k]*Λ[k,m]*G[il,m]
+    #         end
+    #     end
+    #     for jl=il+1:celldim
+    #         S[il,jl]=0.0
+    #         for k=1:spacedim
+    #             for m=1:spacedim
+    #                 S[il,il]+=G[il,k]*Λ[k,m]*G[jl,m]
+    #             end
+    #         end
+    #         S[jl,il]=S[il,jl]
+    #     end
+    # end
+    # return S
 end
 
+
 function femstiffness!(S,G)
-    celldim=size(S,1)
-    spacedim=celldim-1
-    for il=1:celldim
-        @views S[il,il]=dot(G[il,:],G[il,:])
-        for jl=il+1:celldim
-            @views S[il,jl]=dot(G[il,:],G[jl,:])
-            S[jl,il]=S[il,jl]
-        end
-    end
-    return S
+    @einsum S[il,jl]=G[il,k]*G[jl,k]
+
+    # celldim=size(S,1)
+    # spacedim=celldim-1
+    # for il=1:celldim
+    #     S[il,il]=0.0
+    #     for k=1:spacedim
+    #         S[il,il]+=G[il,k]*G[il,k]
+    #     end
+    #     for jl=il+1:celldim
+    #         S[il,jl]=0.0
+    #         for k=1:spacedim
+    #             S[il,jl]+=G[il,k]*G[jl,k]
+    #         end
+    #         S[jl,il]=S[il,jl]
+    #     end
+    # end
+    # return S
 end
 
 
@@ -92,15 +124,17 @@ function femnorms(coord,cellnodes,u)
     G=zeros(celldim, spacedim) # shape function gradients
     M=local_massmatrix[spacedim]
     ncells=size(cellnodes,2)
+    factdim=prod(1:spacedim)
     for icell=1:ncells
 	coordmatrix!(C,coord,cellnodes,icell)
-        G,vol=femgrad!(G,C)
+        vol=abs(det(C))/factdim
+        femgrad!(G,C)
         femstiffness!(S,G)
-        for i in 1:celldim
-            for j in 1:celldim
-                uij=u[cellnodes[j,icell]]*u[cellnodes[i,icell]]*vol
-                l2norm+=uij*M[j,i]
-                h1norm+=uij*S[j,i]
+        for il in 1:celldim
+            for jl in 1:celldim
+                uij=u[cellnodes[jl,icell]]*u[cellnodes[il,icell]]*vol
+                l2norm+=uij*M[jl,il]
+                h1norm+=uij*S[jl,il]
             end
         end
     end
@@ -115,7 +149,50 @@ Dirichlet()=1.0e30
 
 function  femassemble!(A_h, # Global stiffness matrix
                        F_h, # Right hand side of FEM problem
-                       grid, # Discretization grid  
+                       coord,
+                       cellnodes,
+                       bfacenodes,
+                       Λ,
+                       f::Tf,
+                       β::Tβ, # Boundary function
+                       ::Type{Val{spacedim}}) where {Tf,Tβ,spacedim}
+    celldim=spacedim+1
+    S=@MMatrix zeros(celldim, celldim) # local stiffness matrix
+    X=@MMatrix zeros(celldim, celldim) # local stiffness matrix
+    C=@MMatrix zeros(spacedim,spacedim)	# local coordinate matrix
+    G=@MMatrix zeros(celldim,spacedim)  # shape function grdients
+    BC=@MMatrix zeros(spacedim,spacedim)     # local boundary coordinate matrix
+    ncells=size(cellnodes,2)
+    factdim=prod(1:spacedim)
+    xcoord=reinterpret(reshape, SVector{spacedim,Float64},coord)
+    @time for icell=1:ncells
+        coordmatrix!(C,coord,cellnodes,icell)
+        vol=abs(det(C))/factdim
+        femgrad!(G,C)
+        femstiffness!(S,G,Λ)
+        for il=1:celldim
+            ig=cellnodes[il,icell]
+            for jl=1:celldim
+                jg=cellnodes[jl,icell]
+                A_h[ig,jg]+=S[il,jl]*vol
+            end
+	   F_h[ig]+=f(xcoord[ig])*vol/celldim
+        end
+    end    
+    # Boundary part with penalty method
+    nbfaces=size(bfacenodes,2)
+    for ibface in 1:nbfaces
+        for idim=1:spacedim
+            i1=bfacenodes[idim,ibface];
+            A_h[i1,i1]+=Dirichlet();
+            F_h[i1]+=Dirichlet()*β(xcoord[i1])
+        end
+    end
+end
+
+function  femassemble!(A_h, # Global stiffness matrix
+                       F_h, # Right hand side of FEM problem
+                       grid::ExtendableGrid,
                        Λ,
                        f::Tf,
                        β::Tβ # Boundary function
@@ -123,36 +200,21 @@ function  femassemble!(A_h, # Global stiffness matrix
     coord=grid[Coordinates]
     cellnodes=grid[CellNodes]
     bfacenodes=grid[BFaceNodes]
-    spacedim=size(coord,1)
-    celldim=spacedim+1
-    S=zeros(nnodes, nnodes) # local stiffness matrix
-    C=zeros(spacedim,spacedim)  # local coordinate matrix
-    G=zeros(celldim,spacedim)  # shape function grdients
-    BC=zeros(spacedim,spacedim)     # local boundary coordinate matrix
-    ncells=size(cellnodes,2)
-    for icell=1:ncells
-        coordmatrix!(C,coord,cellnodes,icell)
-        G,vol=femgrad!(G,C)
-        femstiffness!(S,G,vol,Λ)
-        for il=1:nnodes
-            i=cellnodes[il,icell]
-            for jl=1:nnodes
-                j=cellnodes[jl,icell]
-                A_h[i,j]+=S[il,jl]
-            end
-	    @views F_h[i]+=f(coord[:,cellnodes[il,icell]])*vol/celldim
-        end
-    end    
-    
-    # Boundary part with penalty method
-    nbfaces=size(bfacenodes,2)
-    bfaceregions=grid[BFaceRegions]
-    for ibface in 1:nbfaces
-        for idim=1:dim
-            i1=bfacenodes[idim,ibface];
-            A_h[i1,i1]+=Dirichlet();
-            F_h[i1]+=Dirichlet()*β(coord[:,i1])
-        end
-    end
+    femassemble!(A_h, F_h, coord, cellnodes, bfacenodes,Λ, f, β, Val{dim_space(grid)})
 end
+
+
+function femsolve(grid,Λ,f,β)
+    # Initialize sparse matrix and right hand side
+    n=num_nodes(grid)
+    matrix=ExtendableSparseMatrix(n,n)
+    rhs=zeros(n)
+    # Call the assemble function.
+    
+    femassemble!(matrix,rhs,grid,Λ,f,β)
+    solver=AMGSolver(matrix, param= (solver=(type="cg",),))
+    solver\rhs
+end 
+
+
 

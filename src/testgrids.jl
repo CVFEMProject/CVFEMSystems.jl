@@ -1,14 +1,13 @@
 function rectgrid(dim,nnodes)
     n0=Int(ceil((nnodes)^(1/dim)))
-    X=range(0,1,length=n0)
+    X=range(-1,1,length=n0)
     simplexgrid(Tuple(X for i=1:dim)...)
 end
-
 
 function randgrid(dim,nnodes)
     if dim==1
         X=zeros(nnodes)
-        X=range(0,1,length=nnodes)|>collect
+        X=range(-1,1,length=nnodes)|>collect
         h=X[2]-X[1]
         for i=2:nnodes-1
             pert= 0.5*h*rand()-0.25*h
@@ -18,11 +17,11 @@ function randgrid(dim,nnodes)
     elseif dim==2
         builder=SimplexGridBuilder(Generator=Triangulate)
         
-        p1=point!(builder,0,0)
-        p2=point!(builder,1,0)
+        p1=point!(builder,-1,-1)
+        p2=point!(builder,1,-1)
         p3=point!(builder,1,1)
-        p4=point!(builder,0,1)
-        point!(builder,0.5*rand()+0.25, 0.5*rand()+0.25)
+        p4=point!(builder,-1,1)
+        point!(builder,rand()-0.5, rand()-0.5)
         
         facetregion!(builder,1)
         facet!(builder,p1,p2)
@@ -32,19 +31,19 @@ function randgrid(dim,nnodes)
         facet!(builder,p3,p4)
         facetregion!(builder,4)
         facet!(builder,p4,p1)
-        simplexgrid(builder,maxvolume=0.75/nnodes)
+        simplexgrid(builder,maxvolume=3/nnodes)
     elseif dim==3
         builder = SimplexGridBuilder(; Generator = TetGen)
-        p1 = point!(builder, 0, 0, 0)
-        p2 = point!(builder, 1, 0, 0)
-        p3 = point!(builder, 1, 1, 0)
-        p4 = point!(builder, 0, 1, 0)
-        p5 = point!(builder, 0, 0, 1)
-        p6 = point!(builder, 1, 0, 1)
+        p1 = point!(builder, -1, -1, -1)
+        p2 = point!(builder, 1, -1, -1)
+        p3 = point!(builder, 1, 1, -1)
+        p4 = point!(builder, -1, 1, -1)
+        p5 = point!(builder, -1, -1, 1)
+        p6 = point!(builder, 1, -1, 1)
         p7 = point!(builder, 1, 1, 1)
-        p8 = point!(builder, 0, 1, 1)
+        p8 = point!(builder, -1, 1, 1)
         # perturb for randoness
-	point!(builder, 0.5*rand()+0.25,0.25*rand()+0.5,0.25*rand()+0.5)
+        point!(builder,rand()-0.5, rand()-0.5, rand()-0.5)
         facetregion!(builder, 1)
         facet!(builder, p1, p2, p3, p4)
         facetregion!(builder, 2)
@@ -57,7 +56,7 @@ function randgrid(dim,nnodes)
         facet!(builder, p3, p4, p8, p7)
         facetregion!(builder, 6)
         facet!(builder, p4, p1, p5, p8)
-        simplexgrid(builder,maxvolume=0.35/nnodes)
+        simplexgrid(builder,maxvolume=2.5/nnodes)
     end
 end
 
