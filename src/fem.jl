@@ -37,19 +37,6 @@ function femgrad!(G,C)
 end
 
 
-function femfactors!(ω,e,G,vol,Λ,len)
-    ne=length(e)
-    for ie=1:ne
-        @views e[ie]=-dot(G[len[1,ie],:],Λ*G[len[2,ie],:])*vol
-    end
-    nn=length(ω)
-    vol/=nn
-    for i=1:nn
-        ω[i]=vol
-    end
-    ω,e
-end
-
 
 
 # function femstiffness!(S,G,Λ)
@@ -165,7 +152,7 @@ function  femassemble!(A_h, # Global stiffness matrix
     ncells=size(cellnodes,2)
     factdim=prod(1:spacedim)
     xcoord=reinterpret(reshape, SVector{spacedim,Float64},coord)
-    @time for icell=1:ncells
+    for icell=1:ncells
         coordmatrix!(C,coord,cellnodes,icell)
         vol=abs(det(C))/factdim
         femgrad!(G,C)
@@ -179,6 +166,7 @@ function  femassemble!(A_h, # Global stiffness matrix
 	   F_h[ig]+=f(xcoord[ig])*vol/celldim
         end
     end    
+
     # Boundary part with penalty method
     nbfaces=size(bfacenodes,2)
     for ibface in 1:nbfaces
@@ -215,6 +203,5 @@ function femsolve(grid,Λ,f,β)
     solver=AMGSolver(matrix, param= (solver=(type="cg",),))
     solver\rhs
 end 
-
 
 

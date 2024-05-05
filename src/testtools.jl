@@ -44,7 +44,8 @@ function femfactors(Λ,coord, cellnodes,icell)
     ω=zeros(celldim)
     e=zeros(size(len[spacedim],2))
     coordmatrix!(C, coord, cellnodes,1)
-    G,vol=femgrad!(G,C)
+    femgrad!(G,C)
+    vol=abs(det(C))/prod(1:spacedim)
     femfactors!(ω,e,G,vol,Λ,len[spacedim])
     ω,e
 end

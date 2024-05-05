@@ -41,18 +41,18 @@ end
 end
 
 
-# @testset "femfactors_0" begin
-#     ω,e=femfactors(Diagonal(ones(1)),coord1d,cellnodes1d,1)
-#     @test ω≈[0.5, 0.5]
-#     @test e≈[1.0]
-#     ω,e=femfactors(Diagonal(ones(2)),coord2d,cellnodes2d,1)
-#     @test ω≈[0.08333333333333333, 0.08333333333333333, 0.08333333333333333]
-#     @test e≈[0.5, 0.5, -0.0]
-#     ω,e=femfactors(Diagonal(ones(3)),coord3d,cellnodes3d,1)
-#     @test ω≈[0.020833333333333332, 0.020833333333333332, 0.020833333333333332, 0.020833333333333332]
-#     @test e≈[0.14583333333333331, -0.0, 0.041666666666666664, 0.16666666666666666, 0.041666666666666664, -0.0]
-#end
-#
+@testset "femfactors_0" begin
+    ω,e=femfactors(Diagonal(ones(1)),coord1d,cellnodes1d,1)
+    @test ω≈[0.5, 0.5]
+    @test e≈[1.0]
+    ω,e=femfactors(Diagonal(ones(2)),coord2d,cellnodes2d,1)
+    @test ω≈[0.08333333333333333, 0.08333333333333333, 0.08333333333333333]
+    @test e≈[0.5, 0.5, -0.0]
+    ω,e=femfactors(Diagonal(ones(3)),coord3d,cellnodes3d,1)
+    @test ω≈[0.020833333333333332, 0.020833333333333332, 0.020833333333333332, 0.020833333333333332]
+    @test e≈[0.14583333333333331, -0.0, 0.041666666666666664, 0.16666666666666666, 0.041666666666666664, -0.0]
+end
+
 
 
 
