@@ -12,6 +12,7 @@ function femfactors!(E,G,Λ,enodes)
         end
         E[ie]=-x
     end
+    E
 end
 
 

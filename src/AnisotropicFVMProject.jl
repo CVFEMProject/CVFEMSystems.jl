@@ -3,7 +3,7 @@ using TestItems: @testitem
 import Tensors
 using LinearAlgebra: det,I, dot, norm, Diagonal
 using Polynomials: Polynomial
-using StaticArrays: MMatrix, SVector, @MMatrix, @MVector
+using StaticArrays: MVector, MMatrix, SVector, @MMatrix, @MVector
 using ExtendableGrids: local_celledgenodes, Edge1D, Triangle2D, num_nodes,dim_space,
     Tetrahedron3D,simplexgrid, ExtendableGrid,
     Coordinates, CellNodes, BFaceNodes
