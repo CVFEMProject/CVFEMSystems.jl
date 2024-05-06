@@ -44,7 +44,7 @@ function update_celldata!(celldata,coord,cellnodes,icell)
     end
     coordmatrix!(celldata.C,coord,cellnodes,icell)
     celldata.vol=abs(det(celldata.C))/celldata.factdim
-    femgrad!(celldata.G,celldata.C)
+    @time femgrad!(celldata.G,celldata.C)
 end
 
 function transmission(celldata,Λ)
@@ -55,27 +55,30 @@ function transmission(celldata,Λ)
     celldata.Λ
 end
 
-function  fvmsolve(coordinates,
-                   cellnodes,
-                   bfacenodes,
+function  fvmsolve(grid::ExtendableGrid,
                    celleval!::Tc,
-                   userdata,
-                   β::Tβ, 
-                   tol,
-                   ) where {Tc,Tβ}
+                   userdata::Tu,
+                   β::Tβ;
+                   tol=1.0e-10,
+                   maxiter=10
+                   ) where {Tc,Tu,Tβ}
+
+    coordinates=grid[Coordinates]
+    cellnodes=grid[CellNodes]
+    bfacenodes=grid[BFaceNodes]
 
     N=size(coordinates,2)
     Jac=ExtendableSparseMatrix(N,N)
     Res=zeros(N)
     U=zeros(N)
-    maxit=10
-
     
     spacedim=size(coordinates,1)
     celldim=spacedim+1
     celldata=CellData(coordinates,len[spacedim])
     ncells=size(cellnodes,2)
-    
+
+    # Define wrapper function with closure in order
+    # to fit the format uses by ForwardDiff
     wrap_celleval!(y,u)=celleval!(y,u,celldata,userdata)
     
     ulocal=zeros(celldim)
@@ -83,7 +86,8 @@ function  fvmsolve(coordinates,
     result=DiffResults.JacobianResult(ylocal,ulocal)
     config = ForwardDiff.JacobianConfig(wrap_celleval!, ylocal, ulocal)
     it=1
-    while it<maxit
+    nalloc=0
+    while it<maxiter
         # Set jaobian and residual to 0
         zero!(Jac)
         Res.=0.0
@@ -95,7 +99,7 @@ function  fvmsolve(coordinates,
                 ulocal[il]=U[cellnodes[il,icell]]
             end
 
-            # AD Jacobian 
+            # AD residual and jacobian 
             ForwardDiff.vector_mode_jacobian!(result, wrap_celleval!, ylocal, ulocal,config)
 
             res=DiffResults.value(result)
@@ -132,36 +136,15 @@ function  fvmsolve(coordinates,
         nm=norm(update,Inf)
         @info it, nm
         if nm<tol
+            if nalloc>0
+                @warn "allocations in assembly loop"
+            end
             return U 
         end
         it+=1
     end  # while it
+    error("no convergence after maxiter=$(maxiter) iterations")
 end
 
 
 
-function fvmsolve(grid::ExtendableGrid,Λ, f, β, η, tol=1.0e-8)
-    coordinates=grid[Coordinates]
-    cellnodes=grid[CellNodes]
-    bfacenodes=grid[BFaceNodes]
-
-    # Evaluate local residuum 
-    function celleval!(y,u,celldata, userdata)
-        y.=zero(eltype(y))
-        ηavg=0.0
-        for il=1:celldim(celldata)
-    	    y[il]-=f(coord(celldata,il))*celldata.vol/celldim(celldata)
-            ηavg+=η(u[il])/celldim(celldata)
-        end
-        ΛKL=transmission(celldata,Λ)
-        for ie=1:nedges(celldata)
-            i1=celldata.edgenodes[1,ie]
-	    i2=celldata.edgenodes[2,ie]
-            g=ηavg*ΛKL[ie]*(u[i1]-u[i2])
-            y[i1]+=g
-            y[i2]-=g
-        end
-    end
-    
-    fvmsolve(coordinates, cellnodes, bfacenodes,celleval!,nothing,β,tol)
-end
