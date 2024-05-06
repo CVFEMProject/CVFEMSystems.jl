@@ -17,6 +17,9 @@ mutable struct CellData{Tgc,Tgn,Ten, Tcm,Tsg,Ttm}
     transmission::Ttm
 end
 
+
+
+
 function CellData(coord,edgenodes)
     spacedim=size(coord,1)
     globalcoord=reinterpret(reshape, SVector{spacedim,Float64},coord)
@@ -43,13 +46,14 @@ function CellData(coord,edgenodes)
              )
 end
 
-celldim(celldata::CellData)=size(celldata.shapegradients,1)
+nnodes(celldata::CellData)=size(celldata.shapegradients,1)
 spacedim(celldata::CellData)=size(celldata.shapegradients,2)
 nedges(celldata::CellData)=size(celldata.edgenodes,2)
-coord(celldata,il)=celldata.globalcoord[celldata.globalnodes[il]]
-globalnode(celldata,il)=celldata.globalnodes[il]
-volume(celldata)=celldata.volume
-edgenode(celldata,i,ie)=celldata.edgenodes[i,ie]
+coord(celldata::CellData,il)=celldata.globalcoord[celldata.globalnodes[il]]
+globalnode(celldata::CellData,il)=celldata.globalnodes[il]
+volume(celldata::CellData)=celldata.volume
+edgenode(celldata::CellData,i,ie)=celldata.edgenodes[i,ie]
+
 
 function transmission(celldata,Λ)
     femfactors!(celldata.transmission,celldata.shapegradients,Λ,celldata.edgenodes)
@@ -61,7 +65,7 @@ end
 
 function update_celldata!(celldata,coord,cellnodes,icell)
     celldata.icell=icell
-    for i=1:celldim(celldata)
+    for i=1:nnodes(celldata)
         celldata.globalnodes[i]=cellnodes[i,icell]
     end
     coordmatrix!(celldata.coordmatrix,coord,cellnodes,icell)
@@ -70,13 +74,52 @@ function update_celldata!(celldata,coord,cellnodes,icell)
 end
 
 
+
+mutable struct BFaceData{Tgc,Tgn}
+    ibface::Int64
+    region::Int64
+    globalcoord::Tgc
+    globalnodes::Tgn
+    volume::Float64
+end
+
+function BFaceData(coord)
+    spacedim=size(coord,1)
+    globalcoord=reinterpret(reshape, SVector{spacedim,Float64},coord)
+    ibface=0
+    region=0
+    globalnodes=@MVector zeros(Int64,spacedim)
+    BFaceData(ibface,
+              region,
+              globalcoord,
+              globalnodes,
+              0.0
+              )
+end
+
+nnodes(bfacedata::BFaceData)=length(bfacedata.globalnodes)
+volume(bfacedata::BFaceData)=bfacedata.volume
+coord(bfacedata::BFaceData,il)=bfacedata.globalcoord[bfacedata.globalnodes[il]]
+
+function update_bfacedata!(bfacedata, coordinates,bfacenodes,ibface)
+    bfacedata.ibface=ibface
+    for i=1:nnodes(bfacedata)
+        bfacedata.globalnodes[i]=bfacenodes[i,ibface]
+    end
+    bfacedata.volume=bfacevolume(coordinates,bfacenodes,ibface)
+end
+
+function dirichlet!(bfacedata, y,u,il,val)
+    y[il]=Dirichlet()*(u[il]-val)
+end
+
 function  fvmsolve(grid::ExtendableGrid,
                    celleval!::Tc,
-                   userdata::Tu,
-                   β::Tβ;
+                   bfaceeval!::Tb;
+                   userdata=nothing,
                    tol=1.0e-10,
                    maxiter=10
-                   ) where {Tc,Tu,Tβ}
+                   ) where {Tc,Tb}
 
     coordinates=grid[Coordinates]
     cellnodes=grid[CellNodes]
@@ -92,14 +135,28 @@ function  fvmsolve(grid::ExtendableGrid,
     celldata=CellData(coordinates,len[spacedim])
     ncells=size(cellnodes,2)
 
+    bfacedata=BFaceData(coordinates)
+
     # Define wrapper function with closure in order
     # to fit the format uses by ForwardDiff
     wrap_celleval!(y,u)=celleval!(y,u,celldata,userdata)
+    wrap_bfaceeval!(y,u)=bfaceeval!(y,u,bfacedata,userdata)
     
     ulocal=zeros(celldim)
     ylocal=zeros(celldim)
     result=DiffResults.JacobianResult(ylocal,ulocal)
     config = ForwardDiff.JacobianConfig(wrap_celleval!, ylocal, ulocal)
+
+    nbfaces=size(bfacenodes,2)
+    
+    # Evaluate at boundary
+    xcoord=reinterpret(reshape, SVector{spacedim,Float64},coordinates)
+
+    ublocal=zeros(spacedim)
+    yblocal=zeros(spacedim)
+    bresult=DiffResults.JacobianResult(yblocal,ublocal)
+    bconfig = ForwardDiff.JacobianConfig(wrap_bfaceeval!, yblocal, ublocal)
+
     it=1
     nalloc=0
     while it<maxiter
@@ -131,20 +188,31 @@ function  fvmsolve(grid::ExtendableGrid,
             end
         end # icell
         
-        # Evaluate at boundary
-        BC=@MMatrix zeros(spacedim,spacedim)     # local boundary coordinate matrix
-        xcoord=reinterpret(reshape, SVector{spacedim,Float64},coordinates)
-        nbfaces=size(bfacenodes,2)
         for ibface in 1:nbfaces
-            for idim=1:spacedim
-                i1=bfacenodes[idim,ibface];
-                Jac[i1,i1]+=Dirichlet();
-                Res[i1]+=Dirichlet()*β(xcoord[i1])
+            update_bfacedata!(bfacedata, coordinates,bfacenodes,ibface)
+            # Copy solution to ulocal
+            for il=1:spacedim
+                ublocal[il]=U[bfacenodes[il,ibface]]
+            end
+
+            # AD residual and jacobian 
+            ForwardDiff.vector_mode_jacobian!(bresult, wrap_bfaceeval!, yblocal, ublocal,bconfig)
+            bres=DiffResults.value(bresult)
+            bjac=DiffResults.jacobian(bresult)
+
+            for il=1:spacedim
+                ig=bfacenodes[il,ibface]
+                Res[ig]+=bres[il]
+                for jl=1:spacedim
+                    jg=bfacenodes[jl,ibface]
+                    Jac[ig,jg]+=bjac[il,jl]
+                end
             end
         end
 
         # Solve residual system
-        update=Jac\Res
+        solver=AMGSolver(Jac, param= (solver=(type="bicgstab",),))
+        update=solver\Res
         # update solution
         U.-=update
 

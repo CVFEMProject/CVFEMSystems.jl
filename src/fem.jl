@@ -46,6 +46,38 @@ function femstiffness!(S,G)
 end
 
 
+
+# Boundary face volume calculation by Heron's formula.
+# We can do better here.
+
+function dist2(coord,ig1,ig2)
+    x=coord[1,ig1]-coord[1,ig2]
+    y=coord[2,ig2]-coord[2,ig2]
+    sqrt(x^2+y^2)
+end
+
+function dist3(coord,ig1,ig2)
+    x=coord[1,ig1]-coord[1,ig2]
+    y=coord[2,ig1]-coord[2,ig2]
+    z=coord[3,ig1]-coord[3,ig2]
+    sqrt(x^2+y^2+z^2)
+end
+
+bfacevolume(coord,bfacenodes,ibface,::Type{Val{1}})=1
+
+bfacevolume(coord,bfacenodes,ibface,::Type{Val{2}})=dist2(coord,bfacenodes[1,ibface],bfacenodes[2,ibface])
+
+function bfacevolume(coord,bfacenodes,ibface,::Type{Val{3}})
+    a=dist3(coord,bfacenodes[1,ibface],bfacenodes[2,ibface])
+    b=dist3(coord,bfacenodes[1,ibface],bfacenodes[3,ibface])
+    c=dist3(coord,bfacenodes[2,ibface],bfacenodes[3,ibface])
+    s=0.5*(a+b+c)
+    sqrt(s*(s-a)*(s-b)*(s-c))
+end
+
+bfacevolume(coord,bfacenodes,ibface)=bfacevolume(coord,bfacenodes,ibface, Val{size(coord,1)})
+
+
 function femnorms(coord,cellnodes,u)
     l2norm=0.0
     h1norm=0.0

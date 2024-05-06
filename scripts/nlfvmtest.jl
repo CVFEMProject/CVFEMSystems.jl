@@ -3,7 +3,7 @@ Pkg.activate(joinpath(@__DIR__,".."))
 
 using LinearAlgebra: Diagonal
 using AnisotropicFVMProject: ∇Λ∇, finitebell, randgrid,rectgrid,fvmsolve
-using AnisotropicFVMProject:celldim,coord,transmission,nedges, volume, edgenode
+using AnisotropicFVMProject: coord,transmission, nnodes, nedges, volume, edgenode,dirichlet!
 using ExtendableGrids: dim_space
 
 function nlfvmtest(grid;tol=1.0e-10)
@@ -16,10 +16,10 @@ function nlfvmtest(grid;tol=1.0e-10)
     function celleval!(y,u,celldata, userdata)
         y.=zero(eltype(y))
         ηavg=0.0
-        ω=volume(celldata)/celldim(celldata)
-        for il=1:celldim(celldata)
+        ω=volume(celldata)/nnodes(celldata)
+        for il=1:nnodes(celldata)
     	    y[il]-=f(coord(celldata,il))*ω
-            ηavg+=η(u[il])/celldim(celldata)
+            ηavg+=η(u[il])/nnodes(celldata)
         end
         ΛKL=transmission(celldata,Λ)
         for ie=1:nedges(celldata)
@@ -30,5 +30,12 @@ function nlfvmtest(grid;tol=1.0e-10)
             y[i2]-=g
         end
     end
-    fvmsolve(grid, celleval!,nothing,β;tol)
+
+    function bfaceeval!(y,u,bfacedata, userdata)
+        y.=zero(eltype(y))
+        for i=1:nnodes(bfacedata)
+            dirichlet!(bfacedata,y,u,i, β(coord(bfacedata,i)))
+        end
+    end
+    fvmsolve(grid, celleval!,bfaceeval!;tol)
 end

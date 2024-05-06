@@ -25,6 +25,11 @@ end
 # ╔═╡ 3866057c-8a2b-481b-8399-6168e7a9f20b
 PlutoUI.TableOfContents()
 
+# ╔═╡ 2471465b-64b7-4f25-97b0-75957940d68d
+md"""
+# Finite element tests
+"""
+
 # ╔═╡ 10e998d3-1bb3-4591-b340-f9b93e027738
 md"""
 ## Finitebell
@@ -274,6 +279,7 @@ runconvergence(Λ3d_a,[10*8^k for k=1:5], rectgrid)
 # ╔═╡ Cell order:
 # ╠═784b4c3e-bb2a-4940-a83a-ed5e5898dfd4
 # ╠═3866057c-8a2b-481b-8399-6168e7a9f20b
+# ╟─2471465b-64b7-4f25-97b0-75957940d68d
 # ╟─10e998d3-1bb3-4591-b340-f9b93e027738
 # ╠═64a7b893-8add-4c52-9725-c8b413c59e40
 # ╠═53cf08d6-f3d8-4a39-ad22-b395da8cda6a
