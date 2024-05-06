@@ -2,7 +2,8 @@ using Pkg
 Pkg.activate(joinpath(@__DIR__,".."))
 
 using LinearAlgebra: Diagonal
-using AnisotropicFVMProject: ∇Λ∇, finitebell, randgrid,rectgrid,fvmsolve, celldim,coord,transmission,nedges
+using AnisotropicFVMProject: ∇Λ∇, finitebell, randgrid,rectgrid,fvmsolve
+using AnisotropicFVMProject:celldim,coord,transmission,nedges, volume, edgenode
 using ExtendableGrids: dim_space
 
 function nlfvmtest(grid;tol=1.0e-10)
@@ -15,14 +16,15 @@ function nlfvmtest(grid;tol=1.0e-10)
     function celleval!(y,u,celldata, userdata)
         y.=zero(eltype(y))
         ηavg=0.0
+        ω=volume(celldata)/celldim(celldata)
         for il=1:celldim(celldata)
-    	    y[il]-=f(coord(celldata,il))*celldata.vol/celldim(celldata)
+    	    y[il]-=f(coord(celldata,il))*ω
             ηavg+=η(u[il])/celldim(celldata)
         end
         ΛKL=transmission(celldata,Λ)
         for ie=1:nedges(celldata)
-            i1=celldata.edgenodes[1,ie]
-	    i2=celldata.edgenodes[2,ie]
+            i1=edgenode(celldata,1,ie)
+	    i2=edgenode(celldata,2,ie)
             g=ηavg*ΛKL[ie]*(u[i1]-u[i2])
             y[i1]+=g
             y[i2]-=g

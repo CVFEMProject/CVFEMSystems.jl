@@ -4,16 +4,17 @@ function zero!(m::ExtendableSparseMatrix)
 end
 
 
-mutable struct CellData{Tgc,Tgn,Ten, Tc,TG,TΛ}
+mutable struct CellData{Tgc,Tgn,Ten, Tcm,Tsg,Ttm}
     icell::Int64
+    region::Int64
     globalcoord::Tgc
     globalnodes::Tgn
     edgenodes::Ten
     factdim::Int64
-    C::Tc
-    G::TG
-    vol::Float64
-    Λ::TΛ
+    coordmatrix::Tcm
+    shapegradients::Tsg
+    volume::Float64
+    transmission::Ttm
 end
 
 function CellData(coord,edgenodes)
@@ -21,39 +22,53 @@ function CellData(coord,edgenodes)
     globalcoord=reinterpret(reshape, SVector{spacedim,Float64},coord)
     celldim=spacedim+1
     icell=0
+    region=0
     xedgenodes=@MMatrix zeros(Int64,2,size(edgenodes,2))
     xedgenodes.=edgenodes
     globalnodes=@MVector zeros(Int64,celldim)
     factdim=prod(1:spacedim)
-    C=@MMatrix zeros(spacedim,spacedim)
-    G=@MMatrix zeros(celldim,spacedim)
-    Λ=@MVector zeros(size(edgenodes,2)) # Transmission coefficients
-    CellData(icell,globalcoord,globalnodes,xedgenodes,factdim,C,G,0.0,Λ)
+    coordmatrix=@MMatrix zeros(spacedim,spacedim)
+    shapegradients=@MMatrix zeros(celldim,spacedim)
+    transmission=@MVector zeros(size(edgenodes,2)) # Transmission coefficients
+    CellData(icell,
+             region,
+             globalcoord,
+             globalnodes,
+             xedgenodes,
+             factdim,
+             coordmatrix,
+             shapegradients,
+             0.0,
+             transmission
+             )
 end
 
-celldim(celldata::CellData)=size(celldata.G,1)
-spacedim(celldata::CellData)=size(celldata.G,2)
+celldim(celldata::CellData)=size(celldata.shapegradients,1)
+spacedim(celldata::CellData)=size(celldata.shapegradients,2)
 nedges(celldata::CellData)=size(celldata.edgenodes,2)
 coord(celldata,il)=celldata.globalcoord[celldata.globalnodes[il]]
 globalnode(celldata,il)=celldata.globalnodes[il]
+volume(celldata)=celldata.volume
+edgenode(celldata,i,ie)=celldata.edgenodes[i,ie]
+
+function transmission(celldata,Λ)
+    femfactors!(celldata.transmission,celldata.shapegradients,Λ,celldata.edgenodes)
+    for ie=1:nedges(celldata)
+        celldata.transmission[ie]*=celldata.volume
+    end
+    celldata.transmission
+end
 
 function update_celldata!(celldata,coord,cellnodes,icell)
     celldata.icell=icell
     for i=1:celldim(celldata)
         celldata.globalnodes[i]=cellnodes[i,icell]
     end
-    coordmatrix!(celldata.C,coord,cellnodes,icell)
-    celldata.vol=abs(det(celldata.C))/celldata.factdim
-    @time femgrad!(celldata.G,celldata.C)
+    coordmatrix!(celldata.coordmatrix,coord,cellnodes,icell)
+    celldata.volume=abs(det(celldata.coordmatrix))/celldata.factdim
+    femgrad!(celldata.shapegradients,celldata.coordmatrix)
 end
 
-function transmission(celldata,Λ)
-    femfactors!(celldata.Λ,celldata.G,Λ,celldata.edgenodes)
-    for ie=1:nedges(celldata)
-        celldata.Λ[ie]*=celldata.vol
-    end
-    celldata.Λ
-end
 
 function  fvmsolve(grid::ExtendableGrid,
                    celleval!::Tc,

@@ -24,7 +24,7 @@ function coordmatrix!(C,coord, cellnodes,icell)
 end
 
 
-function femgrad!(G,C)
+function femgrad!(G::Tg,C::Tc) where {Tg,Tc}
     spacedim=size(C,1)
     celldim=spacedim+1
     G[1:spacedim,1:spacedim].=C\I
@@ -36,68 +36,13 @@ function femgrad!(G,C)
     end
 end
 
-
-
-
-# function femstiffness!(S,G,Λ)
-#     celldim=size(S,1)
-#     spacedim=celldim-1
-#     for il=1:celldim
-#         @views ΛGil=Λ*G[il,:]
-#         @views S[il,il]=dot(ΛGil,G[il,:])
-#         for jl=il+1:celldim
-#             S[il,jl]=dot(ΛGil,G[jl,:])
-#             S[jl,il]=S[il,jl]
-#         end
-#     end
-#     return S
-# end
-
-
 function femstiffness!(S,G,Λ)
     @einsum S[il,jl]=G[il,k]*Λ[k,m]*G[jl,m]
-    # celldim=size(S,1)
-    # spacedim=celldim-1
-    # for il=1:celldim
-    #     S[il,il]=0.0
-    #     for k=1:spacedim
-    #         for m=1:spacedim
-    #             S[il,il]+=G[il,k]*Λ[k,m]*G[il,m]
-    #         end
-    #     end
-    #     for jl=il+1:celldim
-    #         S[il,jl]=0.0
-    #         for k=1:spacedim
-    #             for m=1:spacedim
-    #                 S[il,il]+=G[il,k]*Λ[k,m]*G[jl,m]
-    #             end
-    #         end
-    #         S[jl,il]=S[il,jl]
-    #     end
-    # end
-    # return S
 end
 
 
 function femstiffness!(S,G)
     @einsum S[il,jl]=G[il,k]*G[jl,k]
-
-    # celldim=size(S,1)
-    # spacedim=celldim-1
-    # for il=1:celldim
-    #     S[il,il]=0.0
-    #     for k=1:spacedim
-    #         S[il,il]+=G[il,k]*G[il,k]
-    #     end
-    #     for jl=il+1:celldim
-    #         S[il,jl]=0.0
-    #         for k=1:spacedim
-    #             S[il,jl]+=G[il,k]*G[jl,k]
-    #         end
-    #         S[jl,il]=S[il,jl]
-    #     end
-    # end
-    # return S
 end
 
 
