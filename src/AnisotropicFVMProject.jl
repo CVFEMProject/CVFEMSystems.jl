@@ -17,6 +17,8 @@ using OMEinsum: @ein
 using ForwardDiff, DiffResults
 using Krylov: bicgstab, cg
 using AlgebraicMultigrid: smoothed_aggregation, aspreconditioner
+using SciMLBase: SciMLBase, solve
+using RecursiveArrayTools: RecursiveArrayTools, AbstractDiffEqArray
 
 include("fem.jl")
 export femgrad!, coordmatrix!, femnorms, femsolve
@@ -25,7 +27,7 @@ include("fvm.jl")
 export fvmsolve
 
 include("nlfvm.jl")
-
+export CFVEMSystem, solve
 include("testgrids.jl")
 
 include("testtools.jl")

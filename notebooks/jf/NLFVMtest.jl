@@ -14,8 +14,8 @@ begin
     using LinearAlgebra
     using AnisotropicFVMProject
     using AnisotropicFVMProject: randgrid, rectgrid
-    using AnisotropicFVMProject: finitebell, d1finitebell, d2finitebell, ∇Λ∇, hminmax, ΛMatrix
-    using AnisotropicFVMProject: coord, transmission, nnodes, nedges, volume, edgenode, dirichlet!
+    using AnisotropicFVMProject: finitebell, d1finitebell, d2finitebell, ∇ηΛ∇, hminmax, ΛMatrix
+    using AnisotropicFVMProject: coord, transmission, nnodes, nedges, volume, edgenode, dirichlet!, solve, CVFEMSystem
     using ExtendableGrids: dim_space
 
     using SimplexGridFactory, ExtendableGrids
@@ -63,56 +63,91 @@ grid2d = rectgrid(2, 160)
 # ╔═╡ 99705ed4-546a-4739-afc7-91120f33723e
 gridplot(grid2d; Plotter = CairoMakie, size = (400, 300))
 
-# ╔═╡ 299ed24c-c5d6-4c49-b407-cda278173477
+# ╔═╡ 0c2941bd-ab00-4aa2-bf34-8951efea1d01
+grid2d_a = randgrid(2, 1000)
+
+# ╔═╡ be947e11-c1c0-4173-b682-e87b3523be7d
+gridplot(grid2d_a)
+
+# ╔═╡ 6f265307-3a25-4801-a930-1a0109570bba
 md"""
-### Grid3d
+### Enable 3D
 """
 
-# ╔═╡ 4ceb53f9-7a2e-4ccb-a2fc-9fb45848fb85
-grid3d = randgrid(3, 10000)
+# ╔═╡ 72526e34-0bbc-4af1-b91d-e23fe59b7168
+do3d=true
 
-# ╔═╡ 0aeedbf2-de4b-4845-bf85-3e831e48c14b
-gridplot(grid3d; Plotter = PlutoVista, xplanes = [0.0])
+# ╔═╡ 69732afb-5e74-40fa-88fa-108e284e57cb
+md"""
+## Beta function
+"""
+
+# ╔═╡ 9b1d5d85-c422-4538-a72f-af22f25859fd
+β(a,h)= 1-exp(-max(a,0)^2/(2h^2))
+
+# ╔═╡ 77f07c4f-1952-4e58-855f-99f612367f1f
+X=-3:0.01:3
+
+# ╔═╡ 97f25501-14d1-49af-a869-941b2df66b54
+let
+	vis=GridVisualizer(size=(600,300),legend=:lt)
+	scalarplot!(vis,X,β.(X,1), label="h=1", color=:darkred)
+	scalarplot!(vis,X,β.(X,0.5), label="h=0.5", color=:darkgreen, clear=false)
+	scalarplot!(vis,X,β.(X,0.1), label="h=0.1", color=:darkblue, clear=false)
+	reveal(vis)
+end
 
 # ╔═╡ bb44eba7-ca38-4280-928e-d61f55691539
 md"""
 ## FVM solutions
 """
 
-# ╔═╡ 7bc7440a-a8b8-41b8-a6a0-77e79136844b
-function nlfvmtest(grid; Λ = Diagonal(ones(dim_space(grid))), tol = 1.0e-8)
-    f(X) = -∇Λ∇(finitebell, X, Λ)
-    β(X) = 0.0
+# ╔═╡ ea5ffa60-e0f1-4f9e-891a-6bf4aeffe46e
+β_D(X) = 0.0
 
+# ╔═╡ 7bc7440a-a8b8-41b8-a6a0-77e79136844b
+function nlfvmtest(grid; Λ = Diagonal(ones(dim_space(grid))), kwargs...)
+    η(u) = 1 + u^2
+	f(X) = -∇ηΛ∇(finitebell, X, η, Λ)
+    g=zeros(num_nodes(grid))
+  	hmin,hmax=hminmax(grid)
+    hmax=0.1
     # Evaluate local residuum 
     function celleval!(y, u, celldata, userdata)
         y .= zero(eltype(y))
         ω = volume(celldata) / nnodes(celldata)
+	    ηavg = 0.0
         for il = 1:nnodes(celldata)
             y[il] -= f(coord(celldata, il)) * ω
+            ηavg += η(u[il]) / nnodes(celldata)
         end
         ΛKL = transmission(celldata, Λ)
         for ie = 1:nedges(celldata)
             i1 = edgenode(celldata, 1, ie)
             i2 = edgenode(celldata, 2, ie)
-            g = ΛKL[ie] * (u[i1] - u[i2])
+			if ΛKL[ie]≥0
+				b=1.0
+			else
+				b=β(u[i1]-0,hmax)*β(u[i2]-0,hmax)
+			end
+            g = ηavg*ΛKL[ie] * (u[i1] - u[i2])
             y[i1] += g
             y[i2] -= g
         end
     end
 
-    function bfaceeval!(y, u, bnodedata, userdata)
-        dirichlet!(bnodedata, y, u, β(coord(bnodedata)))
-    end
-    fvmsolve(grid, celleval!, bfaceeval!; tol)
-end
 
-# ╔═╡ ea5ffa60-e0f1-4f9e-891a-6bf4aeffe46e
-β(X) = 0.0
+    function bfaceeval!(y, u, bnodedata, userdata)
+        dirichlet!(bnodedata, y, u, β_D(coord(bnodedata)))
+    end
+
+	sys=CVFEMSystem(grid,celleval!,bfaceeval!,nothing)
+    solve(sys; kwargs...)		
+end
 
 # ╔═╡ 7fffecda-956c-43f7-a3b4-d78396def0c7
 md"""
-### 1D
+### 1D comparison plot
 """
 
 # ╔═╡ 41b0e5b7-590c-431e-99ff-1247aeac24a7
@@ -133,6 +168,7 @@ plot1dresults(grid1d, sol1d)
 function runconvergence(ref, dim, gengrid; Λ = Diagonal(ones(dim)), tol = 1.0e-8)
     h1norms = []
     l2norms = []
+	mins=[]
     h = []
     for n in ref
         grid = gengrid(dim, n)
@@ -141,16 +177,19 @@ function runconvergence(ref, dim, gengrid; Λ = Diagonal(ones(dim)), tol = 1.0e-
         u = map(finitebell, grid)
         sol = nlfvmtest(grid; Λ, tol)
         l2, h1 = femnorms(grid, u - sol)
-        @info "--------------", num_nodes(grid), l2, h1
+		solmin=minimum(sol) 
+        @info "--------------", num_nodes(grid), solmin, l2, h1
         push!(h1norms, h1)
         push!(l2norms, l2)
+        push!(mins, solmin)
     end
 
-    vis = GridVisualizer(; size = (600, 300), xscale = :log, yscale = :log, legend = :lt)
-    scalarplot!(vis, h, l2norms; color = :red, label = "l2")
-    scalarplot!(vis, h, h .^ 2; color = :red, label = "O(h^2)", linestyle = :dot, clear = false)
-    scalarplot!(vis, h, h1norms; color = :blue, label = "h1", linestyle = :solid, clear = false)
-    scalarplot!(vis, h, h; color = :blue, label = "O(h)", linestyle = :dot, clear = false)
+    vis = GridVisualizer(; layout=(1,2), size = (700, 300))
+    scalarplot!(vis[1,1], h, l2norms; color = :red, label = "l2", xscale = :log, yscale = :log, legend = :lt)
+    scalarplot!(vis[1,1], h, h .^ 2; color = :red, label = "O(h^2)", linestyle = :dot, clear = false)
+    scalarplot!(vis[1,1], h, h1norms; color = :blue, label = "h1", linestyle = :solid, clear = false)
+    scalarplot!(vis[1,1], h, h; color = :blue, label = "O(h)", linestyle = :dot, clear = false)
+	scalarplot!(vis[1,2], h, mins, xscale=:log, label="min", legend=:lt)
     reveal(vis)
 end
 
@@ -177,7 +216,7 @@ end
 plot2dresults(grid2d, sol2d)
 
 # ╔═╡ 48997cd2-4d81-49e4-aea9-d7e18f15f592
-runconvergence([10 * 4^k for k = 1:7], 2, rectgrid; tol = 1.0e-8)
+runconvergence([10 * 4^k for k = 1:7], 2, rectgrid; tol = 1.0e-7)
 
 # ╔═╡ 2bc3ce81-cccd-400a-959a-d8980aff5de9
 runconvergence([10 * 4^k for k = 1:7], 2, randgrid; tol = 1.0e-8)
@@ -189,6 +228,15 @@ md"""
 
 # ╔═╡ c958970a-eb33-4bb6-9368-02f4358abd96
 f3d(X) = -∇Λ∇(finitebell, X, Λ3d)
+
+# ╔═╡ 4ceb53f9-7a2e-4ccb-a2fc-9fb45848fb85
+begin
+	do3d
+	grid3d = randgrid(3, 10000)
+end
+
+# ╔═╡ 0aeedbf2-de4b-4845-bf85-3e831e48c14b
+gridplot(grid3d; Plotter = PlutoVista, xplanes = [0.0])
 
 # ╔═╡ 0109c34c-dca4-4d62-80b8-9c466e8c9359
 sol3d = nlfvmtest(grid3d; tol = 1.0e-8)
@@ -205,10 +253,16 @@ end
 plot3dresults(grid3d, sol3d)
 
 # ╔═╡ c3df0646-9f40-4dd2-9a47-44409b5b179b
+begin
+	do3d
 runconvergence([10 * 8^k for k = 1:4], 3, randgrid)
+end
 
 # ╔═╡ a2296968-0fdf-40bb-a254-3a45ed3650db
+begin
+	do3d
 runconvergence([10 * 8^k for k = 1:4], 3, rectgrid)
+end
 
 # ╔═╡ df8f3f9c-df90-4441-92a4-2cda52f3121a
 md"""
@@ -218,9 +272,6 @@ md"""
 # ╔═╡ 65e207b5-1180-4d8b-88cc-c315a0860165
 Λ2d_a = ΛMatrix(100, π / 4)
 
-# ╔═╡ 0c2941bd-ab00-4aa2-bf34-8951efea1d01
-grid2d_a = randgrid(2, 1000)
-
 # ╔═╡ 4072a4d3-b31b-430f-b2b2-1284c345fa7a
 sol2d_a = nlfvmtest(grid2d_a; Λ = Λ2d_a)
 
@@ -228,7 +279,7 @@ sol2d_a = nlfvmtest(grid2d_a; Λ = Λ2d_a)
 plot2dresults(grid2d_a, sol2d_a)
 
 # ╔═╡ 2e74407d-7e87-45ff-aba5-1a76fd5ad685
-runconvergence([10 * 4^k for k = 1:7], 2, randgrid; Λ = Λ2d_a)
+runconvergence([10 * 4^k for k = 1:7], 2, randgrid; Λ = Λ2d_a, tol=1.0e-7)
 
 # ╔═╡ 578343a2-9050-4d76-9847-8cda124f7504
 runconvergence([10 * 4^k for k = 1:7], 2, rectgrid; Λ = Λ2d_a,)
@@ -242,7 +293,11 @@ md"""
 Λ3d_a = ΛMatrix(1000, 100, π / 4)
 
 # ╔═╡ 4394fb2c-15fb-4999-ae0b-2d4be938f7af
+begin
+do3d
 grid3d_a = randgrid(3, 100000)
+
+end
 
 # ╔═╡ 5143dfb5-5137-4bb1-803e-44fe40131b3d
 sol3d_a = nlfvmtest(grid3d_a; Λ = Λ3d_a)
@@ -251,10 +306,17 @@ sol3d_a = nlfvmtest(grid3d_a; Λ = Λ3d_a)
 plot3dresults(grid3d_a, sol3d_a)
 
 # ╔═╡ 3309f370-9d6e-414a-8c8f-35a9c0bfa658
+begin
+	do3d
 runconvergence([10 * 8^k for k = 1:4], 3, randgrid; Λ = Λ3d_a)
 
+end
+
 # ╔═╡ 458eaec7-95eb-4168-b667-383e517f898b
+begin
+do3d
 runconvergence([10 * 8^k for k = 1:4], 3, rectgrid; Λ = Λ3d_a)
+end
 
 # ╔═╡ Cell order:
 # ╠═784b4c3e-bb2a-4940-a83a-ed5e5898dfd4
@@ -267,9 +329,14 @@ runconvergence([10 * 8^k for k = 1:4], 3, rectgrid; Λ = Λ3d_a)
 # ╟─f5bad455-7b9a-4473-8b39-80aa19e17514
 # ╠═53908721-deec-4d31-a121-5075fc03f3e3
 # ╠═99705ed4-546a-4739-afc7-91120f33723e
-# ╟─299ed24c-c5d6-4c49-b407-cda278173477
-# ╠═4ceb53f9-7a2e-4ccb-a2fc-9fb45848fb85
-# ╠═0aeedbf2-de4b-4845-bf85-3e831e48c14b
+# ╠═0c2941bd-ab00-4aa2-bf34-8951efea1d01
+# ╠═be947e11-c1c0-4173-b682-e87b3523be7d
+# ╟─6f265307-3a25-4801-a930-1a0109570bba
+# ╠═72526e34-0bbc-4af1-b91d-e23fe59b7168
+# ╟─69732afb-5e74-40fa-88fa-108e284e57cb
+# ╠═9b1d5d85-c422-4538-a72f-af22f25859fd
+# ╠═77f07c4f-1952-4e58-855f-99f612367f1f
+# ╠═97f25501-14d1-49af-a869-941b2df66b54
 # ╟─bb44eba7-ca38-4280-928e-d61f55691539
 # ╠═7bc7440a-a8b8-41b8-a6a0-77e79136844b
 # ╠═ea5ffa60-e0f1-4f9e-891a-6bf4aeffe46e
@@ -287,6 +354,8 @@ runconvergence([10 * 8^k for k = 1:4], 3, rectgrid; Λ = Λ3d_a)
 # ╠═2bc3ce81-cccd-400a-959a-d8980aff5de9
 # ╟─b35cffd9-1901-467c-8fdd-6bd31de8572d
 # ╠═c958970a-eb33-4bb6-9368-02f4358abd96
+# ╠═4ceb53f9-7a2e-4ccb-a2fc-9fb45848fb85
+# ╠═0aeedbf2-de4b-4845-bf85-3e831e48c14b
 # ╠═0109c34c-dca4-4d62-80b8-9c466e8c9359
 # ╠═655019af-13a8-4a40-b313-fe2d1c3f0d6c
 # ╠═277ee78a-edbc-48ea-99d2-7de7c8b9720c
@@ -294,7 +363,6 @@ runconvergence([10 * 8^k for k = 1:4], 3, rectgrid; Λ = Λ3d_a)
 # ╠═a2296968-0fdf-40bb-a254-3a45ed3650db
 # ╟─df8f3f9c-df90-4441-92a4-2cda52f3121a
 # ╠═65e207b5-1180-4d8b-88cc-c315a0860165
-# ╠═0c2941bd-ab00-4aa2-bf34-8951efea1d01
 # ╠═4072a4d3-b31b-430f-b2b2-1284c345fa7a
 # ╠═d409f9e4-f6a3-48b8-b073-704f50cdcad7
 # ╠═2e74407d-7e87-45ff-aba5-1a76fd5ad685

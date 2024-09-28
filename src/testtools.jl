@@ -148,6 +148,21 @@ function ∇Λ∇ end
 
 ∇Λ∇(u::Func, x::Number, Λ = 1) where {Func} = ∇Λ∇(x -> u(x[1]), Tensors.Vec(x), Λ * I)[1]
 
+"""
+   ∇ηΛ∇(u,x,η=u->u,Λ=I)
+
+For a matrix Λ, and a function η with the help of automatic
+differentiation apply differential operator ``\\nabla\\cdot \\eta\\Lambda  \\nabla`` to a function
+
+
+Defined in $(joinpath("src",basename(@__FILE__)))
+"""
+function ∇ηΛ∇ end
+
+∇ηΛ∇(u::Func, x, η::UFunc=u->u, Λ = I) where {Func, UFunc} = Tensors.divergence(x -> Tensors.Vec((η(u(x))*Λ * Tensors.gradient(u, x))...), Tensors.Vec(x...))
+
+∇ηΛ∇(u::Func, x::Number, ηη::UFunc=u->u,  Λ = 1) where {Func, UFunc} = ∇ηΛ∇(x -> u(x[1]), Tensors.Vec(x),η, Λ * I)[1]
+
 function hminmax(grid)
     cellnodes = grid[CellNodes]
     coord = grid[Coordinates]
