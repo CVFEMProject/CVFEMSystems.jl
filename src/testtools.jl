@@ -63,6 +63,11 @@ function femstiffness(Λ, coord, cellnodes, icell)
 end
 
 rotator(α) = [cos(α) -sin(α); sin(α) cos(α)]
+
+function ΛMatrix(Λ11)
+    Float64[Λ11;;] 
+end
+
 function ΛMatrix(Λ11, α)
     r = rotator(α)
     r * [Λ11 0; 0 1] * r'
@@ -116,6 +121,9 @@ end
 finitebell(x::Number) = finitebell((x,))
 finitebell(x, y) = finitebell((x, y))
 finitebell(x, y, z) = finitebell((x, y, z))
+
+
+paraprod(X) = abs(prod(x->(x+1)*(x-1), X))
 
 """
     d1finitebell(x)
@@ -184,4 +192,83 @@ function hminmax(grid)
         hmin, hmax
     end
     run(xcoord)
+end
+
+
+struct ScalarTestData{Tη, Tu, Tf}
+    Λ::Matrix{Float64}
+    η::Tη
+    u::Tu
+    f::Tf
+end
+function ScalarTestData(;
+			Λ=[1.0 0; 0 1.0], 
+			η=u->1, 
+			u=X->0, 
+			f=X->-∇ηΛ∇(u,X,η,Λ))
+    ScalarTestData(Λ,η,u,f)
+end
+
+
+function udirichlet(y, u, bnodedata, userdata)
+    dirichlet!(bnodedata, y, u, userdata.u(coord(bnodedata)))
+end
+
+function hdirichlet(y, u, bnodedata, userdata)
+    for ispec=1:size(u,1)
+        dirichlet!(bnodedata, y, u, 0.0; ispec)
+    end
+end
+
+function hneumann(y, u, bnodedata, userdata)
+end
+
+
+function minplot(tsol; xlabel="t", ylabel="min(u(t))", kwargs...)
+    mins=[minimum(tsol[i]) for i=1:length(tsol.t)]
+    scalarplot(tsol.t,mins,size=(600,200); xlabel, ylabel, kwargs...)
+end
+
+
+function runconvergence(ref, dim, gengrid; celleval=nothing, bfaceeval=hdirichlet, data=ScalarTestData(), tol = 1.0e-8,
+                        size=(300,300))
+    h1norms = []
+    l2norms = []
+    h = []
+    
+    for r in ref
+        grid = gengrid(dim, 10*2^(dim*r))
+        hmin, hmax = hminmax(grid)
+        push!(h, hmax)
+        u = map(data.u, grid)
+        sys=CVFEMSystem(grid,celleval,bfaceeval,data,1)
+        sol = solve(sys; tol)
+        l2, h1 = femnorms(grid, u - sol[1,:])
+        @info "n=$(num_nodes(grid)), l2=$(l2), h1=$(h1)"
+        push!(h1norms, h1)
+        push!(l2norms, l2)
+    end
+
+    vis = GridVisualizer(; size)
+    scalarplot!(vis[1,1], h, l2norms; color = :red, label = "l2", xscale = :log, yscale = :log, legend = :rb)
+    scalarplot!(vis[1,1], h, (l2norms[1]/h[1]^2)*h .^ 2; color = :red, label = "O(h^2)", linestyle = :dot, clear = false)
+    scalarplot!(vis[1,1], h, h1norms; color = :blue, label = "h1", linestyle = :solid, clear = false)
+    scalarplot!(vis[1,1], h, (h1norms[1]/h[1])*h; color = :blue, label = "O(h)", linestyle = :dot, clear = false)
+    reveal(vis)
+end
+
+function fourplots(grid,tsol;
+                   ispec=1,
+                   times=[tsol.t[1], 0.33*(tsol.t[end]-tsol.t[1]),0.66*(tsol.t[end]-tsol.t[1]), tsol.t[end]],
+                   kwargs...)
+	vis=GridVisualizer(layout=(2,2),resolution=(700,600),kwargs...)
+	myplot(i,j,t)=
+	scalarplot!(vis[i,j],grid,tsol(t)[ispec,:],colormap=:summer,levels=5, title="t=$t")	
+	myplot(1,1,times[1])
+	myplot(1,2,times[2])
+	myplot(2,1,times[3])
+	myplot(2,2,times[4])
+		
+#	mysave(fname,vis)
+	reveal(vis)
 end

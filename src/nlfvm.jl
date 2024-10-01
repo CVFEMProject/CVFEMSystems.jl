@@ -24,7 +24,7 @@ end
 
 Constructor for cell data from coordinate array and nodes per edge matrix.
 """
-function CellData(coord, time, tstep)
+function CellData(coord, nspec,time, tstep)
     spacedim = size(coord, 1)
     globalcoord = reinterpret(reshape, SVector{spacedim, Float64}, coord)
     celldim = spacedim + 1
@@ -38,7 +38,7 @@ function CellData(coord, time, tstep)
     coordmatrix = @MMatrix zeros(spacedim, spacedim)
     shapegradients = @MMatrix zeros(celldim, spacedim)
     transmission = @MVector zeros(size(edgenodes, 2)) # Transmission coefficients
-    uold= @MVector zeros(celldim)
+    uold= @MMatrix zeros(nspec,celldim)
     CellData(icell,
              region,
              globalcoord,
@@ -50,8 +50,8 @@ function CellData(coord, time, tstep)
              0.0,
              transmission,
              uold,
-             time,
-             tstep)
+             Float64(time),
+             Float64(tstep))
 end
 
 """
@@ -196,8 +196,8 @@ end
 
 Set Dirichlet value for bnodedata.
 """
-function dirichlet!(bnodedata, y, u, val)
-    y[1] = Dirichlet() * (u[1] - val)
+function dirichlet!(bnodedata, y, u, val; ispec=1)
+    y[ispec,1] = Dirichlet() * (u[ispec,1] - val)
 end
 
 """
@@ -210,14 +210,18 @@ struct CVFEMSystem{G<: ExtendableGrid,FC<:Function,FB<:Function, UD}
     celleval::FC
     bnodeeval::FB
     userdata::UD
+    num_species::Int
 end
+
+
+num_species(sys)=sys.num_species
 
 """
     zeros(sys)
 
 Return a zero solution vector of system.
 """
-Base.zeros(sys)=zeros(num_nodes(sys.grid))
+Base.zeros(sys)=zeros(num_species(sys), num_nodes(sys.grid))
 
 
 """
@@ -231,35 +235,46 @@ function eval_res_jac!(sys::CVFEMSystem{G,FC,FB,UD}, U, Uold, Res, Jac, time, ts
     coordinates = grid[Coordinates]
     cellnodes = grid[CellNodes]
     bfacenodes = grid[BFaceNodes]
-
+    nspec=num_species(sys)
+    
     spacedim = size(coordinates, 1)
     celldim = spacedim + 1
-    celldata = CellData(coordinates, time, tstep)
+    celldata = CellData(coordinates, nspec, time, tstep)
     ncells = size(cellnodes, 2)
-
+    
     bnodedata = BNodeData(coordinates)
     nbfaces = size(bfacenodes, 2)
 
+    
     wrap_celleval(y, u) = celleval(y, u, celldata, userdata)
     wrap_bnodeeval(y, u) = bnodeeval(y, u, bnodedata, userdata)
     
-    uclocal = zeros(celldim)
-    yclocal = zeros(celldim)
+    uclocal = zeros(nspec,celldim)
+    yclocal = zeros(nspec,celldim)
     cresult = DiffResults.JacobianResult(yclocal, uclocal)
     cconfig = ForwardDiff.JacobianConfig(wrap_celleval, yclocal, uclocal)
 
     
-    ublocal = zeros(1)
-    yblocal = zeros(1)
+    
+    ublocal = zeros(nspec,1)
+    yblocal = zeros(nspec,1)
     bresult = DiffResults.JacobianResult(yblocal, ublocal)
     bconfig = ForwardDiff.JacobianConfig(wrap_bnodeeval, yblocal, ublocal)
 
+    Lg=LinearIndices(U)
+    Lc=LinearIndices(uclocal)
+    Lb=LinearIndices(ublocal)
+
+    
     for icell = 1:ncells
         update!(celldata, coordinates, cellnodes, icell)
         # Copy solution to ulocal
-        for il = 1:celldim
-            uclocal[il] = U[cellnodes[il, icell]]
-            celldata.uold[il] = Uold[cellnodes[il, icell]]
+        for ispec=1:nspec
+            for il = 1:celldim
+                ig=cellnodes[il, icell]
+                @views uclocal[:,il].= U[:,ig]
+                @views celldata.uold[:,il] .= Uold[:,ig]
+            end
         end
         
         # AD residual and jacobian
@@ -267,14 +282,21 @@ function eval_res_jac!(sys::CVFEMSystem{G,FC,FB,UD}, U, Uold, Res, Jac, time, ts
         ForwardDiff.vector_mode_jacobian!(cresult, wrap_celleval, yclocal, uclocal, cconfig)
         cres = DiffResults.value(cresult)
         cjac = DiffResults.jacobian(cresult)
-
+        
         # Assemble into global data
         for il = 1:celldim
-            ig = cellnodes[il, icell]
-            Res[ig] += cres[il]
-            for jl = 1:celldim
-                jg = cellnodes[jl, icell]
-                Jac[ig, jg] += cjac[il, jl]
+            for ispec=1:nspec
+                ig = cellnodes[il, icell]
+                Res[ispec,ig] += cres[ispec,il]
+                for jl = 1:celldim
+                    jg = cellnodes[jl, icell]
+                    for jspec=1:nspec
+                        v=cjac[Lc[ispec,il], Lc[jspec,jl]]
+                        if !iszero(v)
+                            Jac[Lg[ispec,ig],Lg[jspec,jg]] += v
+                        end
+                    end
+                end
             end
         end
     end # icell
@@ -284,13 +306,17 @@ function eval_res_jac!(sys::CVFEMSystem{G,FC,FB,UD}, U, Uold, Res, Jac, time, ts
         for il = 1:spacedim
             update!(bnodedata, coordinates, bfacenodes, ibface, il, vol)
             ig = bfacenodes[il, ibface]
-            ublocal[1] = U[ig]
+            @views ublocal[:,1].= U[:,ig]
             yblocal.=0.0
             ForwardDiff.vector_mode_jacobian!(bresult, wrap_bnodeeval, yblocal, ublocal, bconfig)
             bres = DiffResults.value(bresult)
             bjac = DiffResults.jacobian(bresult)
-            Res[ig] += bres[1]
-            Jac[ig, ig] += bjac[1, 1]
+            @views Res[:,ig].+= bres[:,1]
+            for ispec=1:nspec
+                for jspec=1:nspec
+                    Jac[Lg[ispec,ig], Lg[jspec,ig]] += bjac[Lb[ispec,1], Lb[jspec,1]]
+                end
+            end
         end
     end
 end
@@ -313,8 +339,8 @@ function solve_step!(sys::CVFEMSystem{G,FC,FB,UD},U,Uold,Res,Jac,time,tstep;
         nonzeros(Jac) .= 0.0
         Res .= 0.0
         eval_res_jac!(sys,U,Uold, Res, Jac, time, tstep)
-        update=Jac\Res
-        U.-=damp.*update
+        update=Jac\vec(Res)
+        vec(U).-=damp.*update
         nm = norm(update, Inf)
         if log
             @info it, nm
@@ -383,11 +409,21 @@ function SciMLBase.solve(sys::CVFEMSystem{G,FC,FB,UD};
                          times=nothing,
                          inival=zeros(sys), kwargs...) where {G,FC,FB,UD}
     (;grid)=sys
+    nspec=num_species(sys)
     N = num_nodes(grid)
-    Jac = ExtendableSparseMatrix(N, N)
-    Res = zeros(N)
-    U = copy(inival)
-    Uold = copy(inival)
+    ndof=N*nspec
+    Jac = ExtendableSparseMatrix(ndof, ndof)
+    Res = zeros(nspec,N)
+    if isa(inival,Function)
+        inival=map(inival,grid)
+        U = zeros(nspec,N)
+        U[1,:]=inival
+    elseif isa(inival, Number)
+        U=fill(Float64(inival),nspec,N)
+    else
+        U = copy(inival)
+    end
+    Uold=copy(U)
     if isnothing(times)
         solve_step!(sys,U,Uold,Res,Jac,0.0,Inf; kwargs...)
     else

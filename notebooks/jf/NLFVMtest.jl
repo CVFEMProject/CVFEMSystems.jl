@@ -141,7 +141,7 @@ function nlfvmtest(grid; Λ = Diagonal(ones(dim_space(grid))), kwargs...)
         dirichlet!(bnodedata, y, u, β_D(coord(bnodedata)))
     end
 
-	sys=CVFEMSystem(grid,celleval!,bfaceeval!,nothing)
+	sys=CVFEMSystem(grid,celleval!,bfaceeval!,nothing,1)
     solve(sys; kwargs...)		
 end
 
@@ -176,7 +176,7 @@ function runconvergence(ref, dim, gengrid; Λ = Diagonal(ones(dim)), tol = 1.0e-
         push!(h, hmax)
         u = map(finitebell, grid)
         sol = nlfvmtest(grid; Λ, tol)
-        l2, h1 = femnorms(grid, u - sol)
+        l2, h1 = femnorms(grid, u - sol[1,:])
 		solmin=minimum(sol) 
         @info "--------------", num_nodes(grid), solmin, l2, h1
         push!(h1norms, h1)
@@ -207,7 +207,7 @@ sol2d = nlfvmtest(grid2d; tol = 10e-8)
 # ╔═╡ a8297522-61fb-4a59-ac18-9a113698c649
 function plot2dresults(grid2d, sol2d)
     vis = GridVisualizer(; size = (600, 200), layout = (1, 2))
-    scalarplot!(vis[1, 1], grid2d, sol2d; title = "approx")
+    scalarplot!(vis[1, 1], grid2d, sol2d[1,:]; title = "approx")
     scalarplot!(vis[1, 2], grid2d, map(finitebell, grid2d); title = "exact")
     reveal(vis)
 end
@@ -244,7 +244,7 @@ sol3d = nlfvmtest(grid3d; tol = 1.0e-8)
 # ╔═╡ 655019af-13a8-4a40-b313-fe2d1c3f0d6c
 function plot3dresults(grid3d, sol3d)
     vis = GridVisualizer(; size = (600, 300), layout = (1, 2), Plotter = PlutoVista)
-    scalarplot!(vis[1, 1], grid3d, sol3d; title = "approx")
+    scalarplot!(vis[1, 1], grid3d, sol3d[1,:]; title = "approx")
     scalarplot!(vis[1, 2], grid3d, map(finitebell, grid3d); title = "exact")
     reveal(vis)
 end

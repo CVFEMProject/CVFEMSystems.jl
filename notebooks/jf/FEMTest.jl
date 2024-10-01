@@ -48,6 +48,12 @@ let
     reveal(vis)
 end
 
+# ╔═╡ fc9119a3-8dff-4c69-92e7-33c2b017571b
+fxy(X) = (1+X[1]) * (1 - X[1]) * (1+X[2]) * (1 - X[2])
+
+# ╔═╡ ea04ebe4-11cb-4c91-a8e3-35a78713cf97
+gxy(x)=∇Λ∇(fxy, x)
+
 # ╔═╡ 5aa8a153-1ffa-4820-bcd2-83393170636a
 md"""
 ## Grids 
@@ -70,13 +76,16 @@ scalarplot(grid1d, map(finitebell, grid1d); size = (600, 200))
 # ╔═╡ 817b63cc-4c5a-446d-b22b-d52fc91ee35c
 scalarplot(grid1d, map(x -> ∇Λ∇(finitebell, x), grid1d); size = (600, 200))
 
+# ╔═╡ 69d697d2-9202-4ffb-a296-7197901ae456
+
+
 # ╔═╡ f5bad455-7b9a-4473-8b39-80aa19e17514
 md"""
 ### Grid2D
 """
 
 # ╔═╡ 53908721-deec-4d31-a121-5075fc03f3e3
-grid2d = rectgrid(2, 160)
+grid2d = randgrid(2, 160)
 
 # ╔═╡ 99705ed4-546a-4739-afc7-91120f33723e
 gridplot(grid2d; Plotter = CairoMakie, size = (400, 300))
@@ -174,7 +183,7 @@ md"""
 const Λ2d = Diagonal(ones(2))
 
 # ╔═╡ f19f0fa6-956b-4c5d-8842-4a8492890017
-f2d(X) = -∇Λ∇(finitebell, X, Λ2d)
+f2d(X) = -∇Λ∇(fxy, X, Λ2d)
 
 # ╔═╡ d11d26f8-8273-4321-a8bb-f4d46307d895
 sol2d = femsolve(grid2d, Λ2d, f2d, β)
@@ -280,12 +289,15 @@ runconvergence(Λ3d_a, [10 * 8^k for k = 1:5], rectgrid)
 # ╟─10e998d3-1bb3-4591-b340-f9b93e027738
 # ╠═64a7b893-8add-4c52-9725-c8b413c59e40
 # ╠═53cf08d6-f3d8-4a39-ad22-b395da8cda6a
+# ╠═fc9119a3-8dff-4c69-92e7-33c2b017571b
+# ╠═ea04ebe4-11cb-4c91-a8e3-35a78713cf97
 # ╟─5aa8a153-1ffa-4820-bcd2-83393170636a
 # ╟─e2747647-ab45-4424-bb6f-89d9e965bad0
 # ╠═4492bf1e-117b-4c26-bc6a-44b252332aeb
 # ╠═f558c158-406e-4612-91d6-bbb52f29c3af
 # ╠═2b695f50-07a6-4655-8876-5c5abf13af35
 # ╠═817b63cc-4c5a-446d-b22b-d52fc91ee35c
+# ╠═69d697d2-9202-4ffb-a296-7197901ae456
 # ╟─f5bad455-7b9a-4473-8b39-80aa19e17514
 # ╠═53908721-deec-4d31-a121-5075fc03f3e3
 # ╠═99705ed4-546a-4739-afc7-91120f33723e

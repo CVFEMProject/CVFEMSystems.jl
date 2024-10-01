@@ -19,6 +19,7 @@ using Krylov: bicgstab, cg
 using AlgebraicMultigrid: smoothed_aggregation, aspreconditioner
 using SciMLBase: SciMLBase, solve
 using RecursiveArrayTools: RecursiveArrayTools, AbstractDiffEqArray
+using GridVisualize: scalarplot,scalarplot!, GridVisualizer, reveal
 
 include("fem.jl")
 export femgrad!, coordmatrix!, femnorms, femsolve
