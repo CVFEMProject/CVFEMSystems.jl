@@ -192,7 +192,7 @@ function update!(bnodedata::BNodeData, coordinates, bfacenodes, ibface, inode, v
 end
 
 """
-    dirichlet!(bnodedata,y,u,value)
+    dirichlet!(bnodedata,y,u,value; ispec)
 
 Set Dirichlet value for bnodedata.
 """
@@ -235,6 +235,7 @@ function eval_res_jac!(sys::CVFEMSystem{G,FC,FB,UD}, U, Uold, Res, Jac, time, ts
     coordinates = grid[Coordinates]
     cellnodes = grid[CellNodes]
     bfacenodes = grid[BFaceNodes]
+    bfregions = grid[BFaceRegions]
     nspec=num_species(sys)
     
     spacedim = size(coordinates, 1)
@@ -282,7 +283,7 @@ function eval_res_jac!(sys::CVFEMSystem{G,FC,FB,UD}, U, Uold, Res, Jac, time, ts
         ForwardDiff.vector_mode_jacobian!(cresult, wrap_celleval, yclocal, uclocal, cconfig)
         cres = DiffResults.value(cresult)
         cjac = DiffResults.jacobian(cresult)
-        
+
         # Assemble into global data
         for il = 1:celldim
             for ispec=1:nspec
@@ -299,12 +300,13 @@ function eval_res_jac!(sys::CVFEMSystem{G,FC,FB,UD}, U, Uold, Res, Jac, time, ts
                 end
             end
         end
-    end # icell
+    end # for icell
     
     for ibface = 1:nbfaces
         vol = bfacevolume(coordinates, bfacenodes, ibface)
         for il = 1:spacedim
             update!(bnodedata, coordinates, bfacenodes, ibface, il, vol)
+            bnodedata.region=bfregions[ibface]
             ig = bfacenodes[il, ibface]
             @views ublocal[:,1].= U[:,ig]
             yblocal.=0.0
@@ -314,11 +316,14 @@ function eval_res_jac!(sys::CVFEMSystem{G,FC,FB,UD}, U, Uold, Res, Jac, time, ts
             @views Res[:,ig].+= bres[:,1]
             for ispec=1:nspec
                 for jspec=1:nspec
-                    Jac[Lg[ispec,ig], Lg[jspec,ig]] += bjac[Lb[ispec,1], Lb[jspec,1]]
+                    v= bjac[Lb[ispec,1], Lb[jspec,1]]
+                    if !iszero(v)
+                        Jac[Lg[ispec,ig], Lg[jspec,ig]] += v
+                    end
                 end
             end
         end
-    end
+    end # for ibface
 end
 
 """

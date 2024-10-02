@@ -6,7 +6,7 @@ using Polynomials: Polynomial
 using StaticArrays: MVector, MMatrix, SVector, @MMatrix, @MVector
 using ExtendableGrids: local_celledgenodes, Edge1D, Triangle2D, num_nodes, dim_space,
                        Tetrahedron3D, simplexgrid, ExtendableGrid,
-                       Coordinates, CellNodes, BFaceNodes
+                       Coordinates, CellNodes, BFaceNodes, BFaceRegions
 import Triangulate, TetGen
 using SimplexGridFactory
 using ExtendableSparse, SparseArrays
