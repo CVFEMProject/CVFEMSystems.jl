@@ -1,35 +1,42 @@
 module AnisotropicFVMProject
 using TestItems: @testitem
 import Tensors
-using LinearAlgebra: det, I, dot, norm, Diagonal
+using LinearAlgebra: det, I, norm
 using Polynomials: Polynomial
-using StaticArrays: MVector, MMatrix, SVector, @MMatrix, @MVector
+using StaticArrays: SVector, @MMatrix, @MVector
 using ExtendableGrids: local_celledgenodes, Edge1D, Triangle2D, num_nodes, dim_space,
                        Tetrahedron3D, simplexgrid, ExtendableGrid,
                        Coordinates, CellNodes, BFaceNodes, BFaceRegions
 import Triangulate, TetGen
-using SimplexGridFactory
 using ExtendableSparse, SparseArrays
-using LinearSolve: LinearProblem, solve
-using AMGCLWrap
 using Einsum: @einsum
 using OMEinsum: @ein
-using ForwardDiff, DiffResults
-using Krylov: bicgstab, cg
-using AlgebraicMultigrid: smoothed_aggregation, aspreconditioner
+using DiffResults: DiffResults
+using ForwardDiff: ForwardDiff
 using SciMLBase: SciMLBase, solve
 using RecursiveArrayTools: RecursiveArrayTools, AbstractDiffEqArray
 using GridVisualize: scalarplot,scalarplot!, GridVisualizer, reveal
+using SimplexGridFactory
 
-include("fem.jl")
-export femgrad!, coordmatrix!, femnorms, femsolve
 
-include("fvm.jl")
+include("elementcalculations.jl")
+export femgrad!, coordmatrix!, femnorms
+
+include("femsolve.jl")
+export femsolve
+
+include("fvmsolve.jl")
 export fvmsolve
 
-include("nlfvm.jl")
+include("celldata.jl")
+
+include("bnodedata.jl")
+
+include("transientsolution.jl")
+
+include("cvfemsystem.jl")
+
 export CFVEMSystem, solve
-include("testgrids.jl")
 
 include("testtools.jl")
 

@@ -16,7 +16,7 @@ begin
     using AnisotropicFVMProject: femstiffness!, local_massmatrix
     using AnisotropicFVMProject: randgrid, rectgrid, CVFEMSystem,solve,spacedim
     using AnisotropicFVMProject: finitebell, d1finitebell, d2finitebell, ∇ηΛ∇, hminmax, ΛMatrix, ScalarTestData, paraprod,hdirichlet, hneumann,udirichlet
-    using AnisotropicFVMProject: coord, transmission, nnodes, nedges, volume, edgenode, dirichlet!, minplot, fourplots, runconvergence
+    using AnisotropicFVMProject: coord, transmission, nnodes, nedges, nodevolume, edgenode, dirichlet!, minplot, fourplots, runconvergence
 	using StaticArrays: @MMatrix
 	using GridVisualize: scalarplot, default_plotter!
 	import CairoMakie, PlutoVista
@@ -28,7 +28,7 @@ end
 function celleval(y, u, celldata, userdata)
     (;Λ,f)=userdata
     (;uold,tstep)=celldata
-    ω = volume(celldata) / nnodes(celldata)
+    ω = nodevolume(celldata)
     for il = 1:nnodes(celldata)
         y[1,il] = ((u[1,il] - uold[1,il])/tstep - f(coord(celldata, il))) * ω
     end
