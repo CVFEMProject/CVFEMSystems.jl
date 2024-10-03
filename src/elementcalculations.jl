@@ -89,7 +89,7 @@ end
 
 function dist2(coord, ig1, ig2)
     x = coord[1, ig1] - coord[1, ig2]
-    y = coord[2, ig2] - coord[2, ig2]
+    y = coord[2, ig1] - coord[2, ig2]
     sqrt(x^2 + y^2)
 end
 

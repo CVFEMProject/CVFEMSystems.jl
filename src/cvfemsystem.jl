@@ -102,18 +102,18 @@ function eval_res_jac!(sys::CVFEMSystem{G,FC,FB,UD}, U, Uold, Res, Jac, time, ts
     end # for icell
     
     for ibface = 1:nbfaces
-        vol = bfacevolume(coordinates, bfacenodes, ibface)
+        nodevol = bfacevolume(coordinates, bfacenodes, ibface)/spacedim
+        bnodedata.region=bfregions[ibface]
         for il = 1:spacedim
-            update!(bnodedata, coordinates, bfacenodes, ibface, il, vol)
-            bnodedata.region=bfregions[ibface]
+            update!(bnodedata, coordinates, bfacenodes, ibface, il, nodevol)
             ig = bfacenodes[il, ibface]
             @views ublocal[:,1].= U[:,ig]
             yblocal.=0.0
             ForwardDiff.vector_mode_jacobian!(bresult, wrap_bnodeeval, yblocal, ublocal, bconfig)
             bres = DiffResults.value(bresult)
             bjac = DiffResults.jacobian(bresult)
-            @views Res[:,ig].+= bres[:,1]
             for ispec=1:nspec
+                Res[ispec,ig] += bres[ispec,1]
                 for jspec=1:nspec
                     v= bjac[Lb[ispec,1], Lb[jspec,1]]
                     if !iszero(v)
