@@ -4,9 +4,9 @@ Pkg.activate(joinpath(@__DIR__, "..", ".."))
 using LinearAlgebra: Diagonal
 using AnisotropicFVMProject: ∇Λ∇, finitebell, randgrid, rectgrid, fvmsolve
 using AnisotropicFVMProject: coord, transmission, nnodes, nedges, volume, edgenode, dirichlet!, CVFEMSystem, solve
-using ExtendableGrids: dim_space
+using ExtendableGrids: dim_space, writeVTK
 
-function nlfvmtest(; grid=randgrid(2,10000), tol = 1.0e-10)
+function nlfvmtest(; grid=randgrid(2,100000), tol = 1.0e-10)
     f(X) = -∇Λ∇(finitebell, X)
     β(X) = 0.0
     η(u) = 1 + u^2
@@ -37,7 +37,8 @@ function nlfvmtest(; grid=randgrid(2,10000), tol = 1.0e-10)
 
     sys=CVFEMSystem(grid,celleval!,bnodeeval!, nothing, 1)
 
-    solve(sys;tol)
+    solution=solve(sys;tol)
+    writeVTK("nlfvmtest.vtu",grid;solution)
 end
 
 nlfvmtest()
