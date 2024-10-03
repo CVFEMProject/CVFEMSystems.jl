@@ -113,8 +113,11 @@ end
 # ╔═╡ 431df177-6984-4132-91c8-11915246867d
 φ(T)=0.01+0.01*T^2
 
+# ╔═╡ 307164ca-3dbe-48a5-9bab-2bb14adea8a5
+ax(x)=1
+
 # ╔═╡ e6400a50-ae58-4e5c-ac32-32f4b00903d5
-data1d=XTData(;Λ=ones(1,1), φ)
+data1d=XTData(;Λ=ones(1,1), φ, a=ax)
 
 # ╔═╡ 69f8af2f-af08-41c0-beae-b60b9737aa92
 grid1d=simplexgrid(range(0,1,length=201))
@@ -231,6 +234,7 @@ TableOfContents()
 # ╠═c72ee588-f1f2-46a0-a49f-845d108752c8
 # ╠═71a22381-b926-474d-91a5-fbcca08a3e1f
 # ╠═431df177-6984-4132-91c8-11915246867d
+# ╠═307164ca-3dbe-48a5-9bab-2bb14adea8a5
 # ╠═e6400a50-ae58-4e5c-ac32-32f4b00903d5
 # ╠═69f8af2f-af08-41c0-beae-b60b9737aa92
 # ╠═cfb631fb-7aa8-4e09-9d0b-63a5ffa58bd7

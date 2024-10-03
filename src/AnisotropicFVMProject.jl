@@ -17,7 +17,7 @@ using SciMLBase: SciMLBase, solve
 using RecursiveArrayTools: RecursiveArrayTools, AbstractDiffEqArray
 using GridVisualize: scalarplot,scalarplot!, GridVisualizer, reveal
 using SimplexGridFactory
-
+using AlgebraicMultigrid, Krylov
 
 include("elementcalculations.jl")
 export femgrad!, coordmatrix!, femnorms
