@@ -12,11 +12,11 @@ begin
     Pkg.activate(joinpath(@__DIR__, "..", ".."))
 	using Revise
 	    using LinearAlgebra
-    using AnisotropicFVMProject
-    using AnisotropicFVMProject: femstiffness!, local_massmatrix
-    using AnisotropicFVMProject: randgrid, rectgrid, CVFEMSystem,solve,spacedim
-    using AnisotropicFVMProject: finitebell, d1finitebell, d2finitebell, ∇ηΛ∇, hminmax, ΛMatrix, ScalarTestData, paraprod,hdirichlet, hneumann,udirichlet
-    using AnisotropicFVMProject: coord, transmission, nnodes, nedges, nodevolume, edgenode, dirichlet!, minplot, fourplots, runconvergence
+    using CVFEMSystems
+    using CVFEMSystems: femstiffness!, local_massmatrix
+    using CVFEMSystems: randgrid, rectgrid, CVFEMSystem,solve,spacedim
+    using CVFEMSystems: finitebell, d1finitebell, d2finitebell, ∇ηΛ∇, hminmax, ΛMatrix, ScalarTestData, paraprod,hdirichlet, hneumann,udirichlet
+    using CVFEMSystems: coord, transmission, nnodes, nedges, nodevolume, edgenode, dirichlet!, minplot, fourplots, runconvergence
 	using StaticArrays: @MMatrix
 	using GridVisualize: scalarplot, default_plotter!
 	import CairoMakie, PlutoVista

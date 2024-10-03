@@ -12,10 +12,10 @@ begin
     Pkg.activate(joinpath(@__DIR__, "..", ".."))
     using Revise
     using LinearAlgebra
-    using AnisotropicFVMProject
-    using AnisotropicFVMProject: randgrid, rectgrid
-    using AnisotropicFVMProject: finitebell, d1finitebell, d2finitebell, ∇ηΛ∇, hminmax, ΛMatrix
-    using AnisotropicFVMProject: coord, transmission, nnodes, nedges, volume, edgenode, dirichlet!, solve, CVFEMSystem
+    using CVFEMSystems
+    using CVFEMSystems: randgrid, rectgrid
+    using CVFEMSystems: finitebell, d1finitebell, d2finitebell, ∇ηΛ∇, hminmax, ΛMatrix
+    using CVFEMSystems: coord, transmission, nnodes, nedges, volume, edgenode, dirichlet!, solve, CVFEMSystem
     using ExtendableGrids: dim_space
 
     using SimplexGridFactory, ExtendableGrids

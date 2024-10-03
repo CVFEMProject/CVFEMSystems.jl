@@ -11,9 +11,9 @@ begin
     Pkg.activate(joinpath(@__DIR__, "..", ".."))
     using Revise
     using LinearAlgebra
-    using AnisotropicFVMProject
-    using AnisotropicFVMProject: randgrid, rectgrid
-    using AnisotropicFVMProject: finitebell, d1finitebell, d2finitebell, ∇Λ∇, hminmax, ΛMatrix
+    using CVFEMSystems
+    using CVFEMSystems: randgrid, rectgrid
+    using CVFEMSystems: finitebell, d1finitebell, d2finitebell, ∇Λ∇, hminmax, ΛMatrix
     using SimplexGridFactory, ExtendableGrids
     using StaticArrays
     import Triangulate, TetGen, CairoMakie, PlutoVista

@@ -2,8 +2,8 @@ using Pkg
 Pkg.activate(joinpath(@__DIR__, "..", ".."))
 
 using LinearAlgebra: Diagonal
-using AnisotropicFVMProject: ∇Λ∇, finitebell, randgrid, rectgrid, fvmsolve
-using AnisotropicFVMProject: coord, transmission, nnodes, nedges, volume, edgenode, dirichlet!, CVFEMSystem, solve
+using CVFEMSystems: ∇Λ∇, finitebell, randgrid, rectgrid, fvmsolve
+using CVFEMSystems: coord, transmission, nnodes, nedges, volume, edgenode, dirichlet!, CVFEMSystem, solve
 using ExtendableGrids: dim_space, writeVTK
 
 function nlfvmtest(; grid=randgrid(2,100000), tol = 1.0e-10)

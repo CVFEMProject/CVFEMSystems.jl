@@ -20,11 +20,11 @@ begin
     Pkg.activate(joinpath(@__DIR__, "..", ".."))
 	using Revise
 	    using LinearAlgebra
-    using AnisotropicFVMProject
-    using AnisotropicFVMProject: femstiffness!, local_massmatrix
-    using AnisotropicFVMProject: randgrid, rectgrid, CVFEMSystem,solve,spacedim
-    using AnisotropicFVMProject: finitebell, d1finitebell, d2finitebell, ∇ηΛ∇, hminmax, ΛMatrix, ScalarTestData, paraprod,hdirichlet, hneumann,udirichlet
-    using AnisotropicFVMProject: coord, transmission, nnodes, nedges, nodevolume, edgenode, dirichlet!, minplot, fourplots, runconvergence
+    using CVFEMSystems
+    using CVFEMSystems: femstiffness!, local_massmatrix
+    using CVFEMSystems: randgrid, rectgrid, CVFEMSystem,solve,spacedim
+    using CVFEMSystems: finitebell, d1finitebell, d2finitebell, ∇ηΛ∇, hminmax, ΛMatrix, ScalarTestData, paraprod,hdirichlet, hneumann,udirichlet
+    using CVFEMSystems: coord, transmission, nnodes, nedges, nodevolume, edgenode, dirichlet!, minplot, fourplots, runconvergence
 	using ExtendableGrids: simplexgrid, bfacemask!
 	
 	using GridVisualize: scalarplot, default_plotter!, scalarplot!, GridVisualizer, reveal, gridplot
@@ -178,7 +178,7 @@ vtsol1d.t≈tsol1d.t
 let
 	vis=GridVisualizer(size=(700,300),legend=:rt,flimits=(-0.1,2), layout=(2,1))
 	sol=tsol1d[it1d]
-    scalarplot!(vis[1,1],grid1d, sol[iX,:], color=:green, label="X", title="AnisotropicFVMProject")
+    scalarplot!(vis[1,1],grid1d, sol[iX,:], color=:green, label="X", title="CVFEMSystems")
     scalarplot!(vis[1,1],grid1d, sol[iT,:], color=:red, label="T", clear=false)
 	vsol=vtsol1d[it1d]
     scalarplot!(vis[2,1],grid1d, vsol[iX,:], color=:green, label="X", title="VoronoiFVM, diff=$(norm(vsol-sol,Inf))")

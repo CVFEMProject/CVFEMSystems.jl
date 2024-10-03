@@ -1,4 +1,4 @@
-name = "AnisotropicFVMProject"
+name = "CVFEMSystems"
 uuid = "0af68cf8-b9f3-4f9e-84f2-6ecd8b7c35ba"
 authors = ["Jürgen Fuhrmann <juergen-fuhrmann@web.de>"]
 version = "0.1.0"

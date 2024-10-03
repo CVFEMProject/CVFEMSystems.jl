@@ -1,4 +1,4 @@
-module AnisotropicFVMProject
+module CVFEMSystems
 using TestItems: @testitem
 import Tensors
 using LinearAlgebra: det, I, norm
@@ -40,4 +40,4 @@ export CFVEMSystem, solve
 
 include("testtools.jl")
 
-end # module AnisotropicFVMProject
+end # module CVFEMSystems
