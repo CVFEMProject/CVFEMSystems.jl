@@ -36,7 +36,7 @@ end
 
 Volume (area, length, 1)  corresponding to bondary node.
 """
-volume(bnodedata::BNodeData) = bnodedata.nodevolume
+nodevolume(bnodedata::BNodeData) = bnodedata.volume
 
 """
     coord(bonodedata)
